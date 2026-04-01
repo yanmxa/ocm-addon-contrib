@@ -24,6 +24,7 @@ SEP="# =========================================================================
 
 # Show next command, type into hub pane, wait for operator Enter to execute
 run() {
+  hub_silent ""
   echo ""
   echo "  >> $*"
   tmux send-keys -t "$HUB" "$*"
@@ -79,8 +80,8 @@ run_ml() {
 # Wait for operator Enter (used after long-running commands complete)
 wait_enter() { echo ""; echo "  [Enter to continue]"; read -rs; echo ""; }
 
-# Print blank lines to visually separate major steps in both panes
-space() { hub_silent ""; echo ""; echo ""; }
+# Print blank lines in control terminal to visually separate major steps
+space() { echo ""; echo ""; }
 
 banner() {
   hub_silent ""
@@ -141,6 +142,7 @@ tmux send-keys -t "$HUB" "export KUBECONFIG_HUB=$KUBECONFIG_HUB KUBECONFIG_C1=$K
 tmux send-keys -t "$HUB" "zle_highlight=(default:none)" Enter; sleep 0.3
 tmux send-keys -t "$HUB" "cd $CTX_DIR/hub && clear" Enter; sleep 0.3
 tmux send-keys -t "$HUB" "export KUBECONFIG=$KUBECONFIG_HUB" Enter; sleep 0.3
+tmux send-keys -t "$HUB" "" Enter; sleep 0.3
 tmux select-pane -t "$HUB" -T "hub | OCM Control Plane"
 
 # ─── Agenda ──────────────────────────────────────────────────
@@ -150,16 +152,13 @@ hub_silent "# Scaling Enterprise Federated AI with Flower and Open Cluster Manag
 hub_silent "$SEP"
 hub_silent "#"
 hub_silent "#   1. Open Cluster Management Setup"
-hub_silent "#      Bootstrap hub + cluster1 + cluster2, join and accept managed clusters"
 hub_silent "#"
 hub_silent "#   2. Define SuperNode with OCM Addon"
-hub_silent "#      ClusterManagementAddon, ManagedClusterAddon, AddonTemplate"
 hub_silent "#"
 hub_silent "#   3. Schedule SuperNode with OCM Placement"
-hub_silent "#      Dynamically install SuperNode on clusters based on GPU resource"
 hub_silent "#"
 hub_silent "#   4. Application Distribution via OCM Work API"
-hub_silent "#      Distribute ClientApp dynamically via ManifestWorkReplicaSet + Placement"
+hub_silent "#"
 read -rs
 
 # ─── Section 1: Open Cluster Management Setup ────────────────
@@ -222,6 +221,17 @@ banner "Section 2/4  |  Define SuperNode with OCM Addon"
 HUB_IP=$(KUBECONFIG=$KUBECONFIG_HUB kubectl get nodes \
   -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null)
 
+# Configure flwr CLI to connect to SuperLink with TLS (invisible)
+mkdir -p ~/.flwr
+cat > ~/.flwr/config.toml <<EOF
+[superlink]
+default = "ocm-deployment"
+
+[superlink.ocm-deployment]
+address = "${HUB_IP}:30093"
+root-certificates = "${CTX_DIR}/hub/ca.crt"
+EOF
+
 run "echo Hub IP: $HUB_IP"
 
 space
@@ -244,6 +254,10 @@ wait_enter
 
 run "kubectl wait --for=condition=available deployment/superlink -n flower-system --timeout=90s"
 wait_enter
+
+# Extract CA cert for flwr CLI (invisible)
+KUBECONFIG=$KUBECONFIG_HUB kubectl get secret flower-tls-ca -n flower-system \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d > $CTX_DIR/hub/ca.crt
 run "kubectl get pods -n flower-system"
 
 space
@@ -254,6 +268,7 @@ wait_enter
 space
 note "ClusterManagementAddon -- registers addon globally; installStrategy=Placements (automatic via Placement)"
 run "kubectl get clustermanagementaddon flower-addon -oyaml | bat -l yaml --paging=never --theme="GitHub""
+wait_enter
 
 recap "SuperLink running on hub, AddonTemplate + ClusterManagementAddon registered"
 
@@ -264,8 +279,6 @@ banner "Section 3/4  |  Schedule SuperNode with OCM Placement"
 run "kubectl get placement flower-addon-gpu-placement -n open-cluster-management -oyaml | bat -l yaml --paging=never --theme="GitHub""
 wait_enter
 
-note "ClusterManagementAddon links to this Placement via installStrategy.placements"
-run "kubectl get clustermanagementaddon flower-addon -ojsonpath='{.spec.installStrategy.placements}' | jq ."
 
 c1 "watch kubectl get pods -n flower-addon"
 c2 "watch kubectl get pods -n flower-addon"
@@ -310,11 +323,16 @@ sleep 0.3
 c1 "watch kubectl get pods -n flower-addon"
 c2 "watch kubectl get pods -n flower-addon"
 
-# Show Placement predicate + MWRS placementRefs in one file
+# Deploy ServerApp on hub first
+note "Deploy ServerApp on hub"
+run "kubectl apply -f $DEMO_DIR/serverapp-hub.yaml"
+
+space
+# Show ClientApp Placement + ManifestWorkReplicaSet definition
 run "bat -l yaml --paging=never --theme="GitHub" $DEMO_DIR/clientapp-with-data.yaml"
 wait_enter
 
-# Apply + label both clusters
+# Deploy ClientApp on managed clusters
 run "kubectl apply -f $DEMO_DIR/clientapp-with-data.yaml"
 run "kubectl label managedcluster cluster1 data=cifar10"
 
@@ -332,23 +350,39 @@ tmux send-keys -t "$C1" "C-c" ""; sleep 0.3
 tmux send-keys -t "$C2" "C-c" ""; sleep 0.3
 
 space
-note "Watch ClientApp pods on both clusters until Running"
+note "Watch all pods until Running -- ServerApp on hub, ClientApp on cluster1 + cluster2"
+run "watch kubectl get pods -n flower-system -l app.kubernetes.io/component=superexec-serverapp"
 c1 "watch kubectl get pods -n flower-addon"
 c2 "watch kubectl get pods -n flower-addon"
 wait_enter
 
+tmux send-keys -t "$HUB" "C-c" ""; sleep 0.3
 tmux send-keys -t "$C1" "C-c" ""; sleep 0.3
 tmux send-keys -t "$C2" "C-c" ""; sleep 0.3
 
 space
-note "Check ClientApp logs on both clusters"
-run_c1 "kubectl logs -n flower-addon -l app.kubernetes.io/component=superexec-clientapp | head -10"
-run_c2 "kubectl logs -n flower-addon -l app.kubernetes.io/component=superexec-clientapp | head -10"
+note "Tail ClientApp logs on both clusters"
+c1 "kubectl logs -n flower-addon -l app.kubernetes.io/component=superexec-clientapp -f"
+c2 "kubectl logs -n flower-addon -l app.kubernetes.io/component=superexec-clientapp -f"
+
+space
+note "Submit FL training job from hub"
+run "cd $REPO/flower-addon/cifar10 && flwr run . ocm-deployment --stream"
+
+# Training complete -- stop all streaming logs
 wait_enter
+tmux send-keys -t "$HUB" "C-c" ""; sleep 0.3
+tmux send-keys -t "$C1"  "C-c" ""; sleep 0.3
+tmux send-keys -t "$C2"  "C-c" ""; sleep 0.3
+hub_silent "cd $CTX_DIR/hub"
 
 banner "Demo Complete"
-hub_silent ""
+hub_silent "#"
 hub_silent "# 1. OCM hub + 2 managed clusters bootstrapped"
+hub_silent "#"
 hub_silent "# 2. SuperNode defined via AddonTemplate, scheduled by GPU label via Placement"
+hub_silent "#"
 hub_silent "# 3. ClientApp distributed to all selected clusters via ManifestWorkReplicaSet"
+hub_silent "#"
 hub_silent "# 4. Federated learning training running across cluster1 + cluster2"
+hub_silent "#"

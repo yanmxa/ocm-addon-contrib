@@ -53,7 +53,7 @@ spec:
                 containers:
                   - name: superexec
                     image: quay.io/myan/flower-app:cifar10-v1.0.0
-                    imagePullPolicy: Always
+                    imagePullPolicy: IfNotPresent
                     args:
                       - "--insecure"
                       - "--appio-api-address=flower-supernode:9094"
