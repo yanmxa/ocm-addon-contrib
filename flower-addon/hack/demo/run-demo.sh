@@ -13,6 +13,7 @@
 
 REPO="/home/cloud-user/workspace/ocm-addon-contrib"
 DEMO_DIR="/home/cloud-user/workspace/flower-addon-demo/flower-addon/hack/demo"
+CTX_DIR="$HOME/flower-demo"   # context dirs -- outside git repo, no branch info in prompt
 
 HUB="flower:0.0"   # top pane        -- hub context
 C1="flower:0.1"    # bottom-left     -- cluster1 live view
@@ -76,29 +77,21 @@ tmux split-window -t flower:0.0 -v -p 35
 tmux split-window -t flower:0.1 -h
 sleep 0.5
 
-# Set pane titles
-tmux select-pane -t "$HUB" -T "hub | OCM Control Plane"
-tmux select-pane -t "$C1"  -T "cluster1 | Managed Cluster"
-tmux select-pane -t "$C2"  -T "cluster2 | Managed Cluster"
-
-# Clear and set working directory in each pane
-tmux send-keys -t "$C2" "cd $REPO/flower-addon && clear" Enter
-sleep 0.3
-tmux send-keys -t "$C1" "cd $REPO/flower-addon && clear" Enter
-sleep 0.3
-tmux send-keys -t "$HUB" "cd $REPO/flower-addon && clear" Enter
-sleep 0.5
+# Each pane cd into its named context dir (outside git repo -- clean prompt)
+tmux send-keys -t "$C2"  "cd $CTX_DIR/cluster2 && clear" Enter; sleep 0.3
+tmux send-keys -t "$C1"  "cd $CTX_DIR/cluster1 && clear" Enter; sleep 0.3
+tmux send-keys -t "$HUB" "cd $CTX_DIR/hub      && clear" Enter; sleep 0.5
 
 # Focus hub pane
 tmux select-pane -t "$HUB"
 sleep 0.5
 
-# Set working directory and bootstrap env vars in all panes
-hub_silent "cd $REPO/flower-addon"
+# Export env vars in all panes
 hub_silent "export REPO=$REPO DEMO_DIR=$DEMO_DIR"
 hub_silent "export KUBECONFIG_HUB=$KUBECONFIG_HUB KUBECONFIG_C1=$KUBECONFIG_C1 KUBECONFIG_C2=$KUBECONFIG_C2"
-c1 "cd $REPO/flower-addon"
-c2 "cd $REPO/flower-addon"
+hub_silent "export KUBECONFIG=$KUBECONFIG_HUB"
+c1 "export KUBECONFIG=$KUBECONFIG_C1"
+c2 "export KUBECONFIG=$KUBECONFIG_C2"
 hold 1
 
 echo "Panes ready. Starting demo..."
