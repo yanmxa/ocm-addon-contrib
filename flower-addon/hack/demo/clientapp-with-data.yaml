@@ -52,7 +52,7 @@ spec:
               spec:
                 containers:
                   - name: superexec
-                    image: quay.io/open-cluster-management/flower-app:cifar10-v1.0.0
+                    image: quay.io/myan/flower-app:cifar10-v1.0.0
                     imagePullPolicy: Always
                     args:
                       - "--insecure"
