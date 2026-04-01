@@ -1,0 +1,60 @@
+# Allow Placement to select from global cluster set
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: flower-system
+spec:
+  clusterSet: global
+---
+# Placement: SuperNode Available AND cluster has training data
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: flower-clientapp-placement
+  namespace: flower-system
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            feature.open-cluster-management.io/addon-flower-addon: available
+            data: cifar10
+---
+# ManifestWorkReplicaSet: distribute ClientApp to all placement-selected clusters
+apiVersion: work.open-cluster-management.io/v1alpha1
+kind: ManifestWorkReplicaSet
+metadata:
+  name: flower-superexec-clientapp
+  namespace: flower-system
+spec:
+  placementRefs:
+    - name: flower-clientapp-placement
+  manifestWorkTemplate:
+    workload:
+      manifests:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: superexec-clientapp
+            namespace: flower-addon
+            labels:
+              app.kubernetes.io/component: superexec-clientapp
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app.kubernetes.io/component: superexec-clientapp
+            template:
+              metadata:
+                labels:
+                  app.kubernetes.io/component: superexec-clientapp
+              spec:
+                containers:
+                  - name: superexec
+                    image: quay.io/open-cluster-management/flower-app:cifar10-v1.0.0
+                    imagePullPolicy: Always
+                    args:
+                      - "--insecure"
+                      - "--appio-api-address=flower-supernode:9094"
+                      - "--plugin-type=clientapp"
