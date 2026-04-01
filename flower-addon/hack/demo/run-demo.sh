@@ -74,11 +74,24 @@ echo "Setting up flower:0 panes..."
 
 tmux split-window -t flower:0.0 -v -p 35
 tmux split-window -t flower:0.1 -h
+sleep 0.5
+
+# Set pane titles
 tmux select-pane -t "$HUB" -T "hub | OCM Control Plane"
 tmux select-pane -t "$C1"  -T "cluster1 | Managed Cluster"
 tmux select-pane -t "$C2"  -T "cluster2 | Managed Cluster"
+
+# Clear and set working directory in each pane
+tmux send-keys -t "$C2" "cd $REPO/flower-addon && clear" Enter
+sleep 0.3
+tmux send-keys -t "$C1" "cd $REPO/flower-addon && clear" Enter
+sleep 0.3
+tmux send-keys -t "$HUB" "cd $REPO/flower-addon && clear" Enter
+sleep 0.5
+
+# Focus hub pane
 tmux select-pane -t "$HUB"
-sleep 1
+sleep 0.5
 
 # Set working directory and bootstrap env vars in all panes
 hub_silent "cd $REPO/flower-addon"
