@@ -95,7 +95,7 @@ sleep 0.5
 
 # Set working directory and bootstrap env vars in all panes
 hub_silent "cd $REPO/flower-addon"
-hub_silent "export REPO=$REPO DEMO_DIR="/home/cloud-user/workspace/flower-addon-demo/flower-addon/hack/demo"
+hub_silent "export REPO=$REPO DEMO_DIR=$DEMO_DIR"
 hub_silent "export KUBECONFIG_HUB=$KUBECONFIG_HUB KUBECONFIG_C1=$KUBECONFIG_C1 KUBECONFIG_C2=$KUBECONFIG_C2"
 c1 "cd $REPO/flower-addon"
 c2 "cd $REPO/flower-addon"
