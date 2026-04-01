@@ -81,21 +81,21 @@ tmux split-window -t flower:0.0 -v -p 35
 tmux split-window -t flower:0.1 -h
 sleep 0.5
 
-# Each pane cd into its named context dir (outside git repo -- clean prompt)
+# Each pane: cd into context dir, clear, then show export KUBECONFIG as first visible command
 tmux send-keys -t "$C2"  "cd $CTX_DIR/cluster2 && clear" Enter; sleep 0.3
+tmux send-keys -t "$C2"  "export KUBECONFIG=$KUBECONFIG_C2" Enter; sleep 0.3
+
 tmux send-keys -t "$C1"  "cd $CTX_DIR/cluster1 && clear" Enter; sleep 0.3
-tmux send-keys -t "$HUB" "cd $CTX_DIR/hub      && clear" Enter; sleep 0.5
+tmux send-keys -t "$C1"  "export KUBECONFIG=$KUBECONFIG_C1" Enter; sleep 0.3
 
-# Focus hub pane
+tmux send-keys -t "$HUB" "cd $CTX_DIR/hub && clear" Enter; sleep 0.3
+tmux send-keys -t "$HUB" "export KUBECONFIG=$KUBECONFIG_HUB" Enter; sleep 0.3
+
+# Focus hub pane, set remaining env vars silently
 tmux select-pane -t "$HUB"
-sleep 0.5
-
-# Export env vars in all panes
+sleep 0.3
 hub_silent "export REPO=$REPO DEMO_DIR=$DEMO_DIR"
 hub_silent "export KUBECONFIG_HUB=$KUBECONFIG_HUB KUBECONFIG_C1=$KUBECONFIG_C1 KUBECONFIG_C2=$KUBECONFIG_C2"
-hub_silent "export KUBECONFIG=$KUBECONFIG_HUB"
-c1 "export KUBECONFIG=$KUBECONFIG_C1"
-c2 "export KUBECONFIG=$KUBECONFIG_C2"
 hold 1
 
 # ─── Agenda (printed as comments in hub pane) ─────────────────
