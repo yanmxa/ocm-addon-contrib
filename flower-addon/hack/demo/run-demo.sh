@@ -210,6 +210,7 @@ run "kubectl get managedclusters"
 note "Klusterlet -- OCM agent on each managed cluster, connects back to hub"
 c1 "kubectl get pods -n open-cluster-management-agent"
 c2 "kubectl get pods -n open-cluster-management-agent"
+wait_enter
 
 recap "Hub + 2 managed clusters up, Klusterlet agents connected to hub"
 
@@ -232,11 +233,11 @@ address = "${HUB_IP}:30093"
 root-certificates = "${CTX_DIR}/hub/ca.crt"
 EOF
 
-run "echo Hub IP: $HUB_IP"
+run "export HUB_IP=\$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}') && echo HUB_IP=\$HUB_IP"
 
 space
-note "Generate TLS certificates for SuperLink and create Kubernetes Secrets"
-run "$REPO/flower-addon/hack/generate-certs.sh --hub-ip $HUB_IP > /dev/null 2>&1 && echo 'TLS secrets created on hub: flower-tls-ca, flower-superlink-tls'"
+note "Generate TLS certificates for SuperLink"
+run "$REPO/flower-addon/hack/generate-certs.sh --hub-ip \$HUB_IP > /dev/null 2>&1 && echo 'Created: flower-tls-ca, flower-superlink-tls'"
 
 space
 note "Install flower-addon helm chart -- deploys SuperLink on hub + registers addon"
