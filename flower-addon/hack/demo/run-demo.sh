@@ -25,53 +25,57 @@ KUBECONFIG_C2=~/.kube/cluster2
 
 # ─── Helpers ─────────────────────────────────────────────────
 
-# Type a command into flower hub pane (no Enter yet), then wait for operator Enter, then execute
+# Type speed (seconds per character)
+TYPE_SPEED=0.04
+
+# Type text into hub pane character by character (demo-magic style)
+type_into_hub() {
+  local text="$*"
+  local i ch
+  for (( i=0; i<${#text}; i++ )); do
+    ch="${text:$i:1}"
+    tmux set-buffer -- "$ch"
+    tmux paste-buffer -t "$HUB"
+    sleep $TYPE_SPEED
+  done
+}
+
+# Type command into hub pane, wait for operator Enter, then execute
 run() {
-  local cmd="$*"
-  echo ""
-  echo "  next >> $cmd"
-  read -r -p "  [Enter to run] "
-  tmux send-keys -t "$HUB" "$cmd" Enter
+  type_into_hub "$*"
+  read -rs
+  tmux send-keys -t "$HUB" Enter
   sleep 0.8
 }
 
-# Run silently in hub pane without interactive prompt (for env setup / background steps)
+# Run silently in hub pane (no typing effect, no interaction)
 hub_silent() { tmux send-keys -t "$HUB" "$*" Enter; sleep 0.6; }
 c1()         { tmux send-keys -t "$C1"  "$*" Enter; sleep 0.6; }
 c2()         { tmux send-keys -t "$C2"  "$*" Enter; sleep 0.6; }
 
-# Wait N seconds (give a long-running command time to finish)
+# Wait N seconds
 hold() { sleep "${1:-4}"; }
 
-# Print section banner + update pane titles to match current section
+# Section banner in hub pane -- operator presses Enter to proceed
 banner() {
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  $1"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  read -r -p "  [Enter to start this section] "
-  # Update pane titles to reflect current section
+  hub_silent "# ================================================================"
+  hub_silent "# $1"
+  hub_silent "# ================================================================"
+  read -rs
   tmux select-pane -t "$HUB" -T "$1"
   tmux select-pane -t "$C1"  -T "cluster1 | Managed Cluster"
   tmux select-pane -t "$C2"  -T "cluster2 | Managed Cluster"
   tmux select-pane -t "$HUB"
-  hub_silent "# ================================================================"
-  hub_silent "# $1"
-  hub_silent "# ================================================================"
-  sleep 0.5
+  sleep 0.3
 }
 
-# Print an inline note as shell comment in flower pane + preview in ctrl
+# Inline comment in hub pane
 note() {
-  echo ""
-  echo "  # $1"
-  echo ""
   hub_silent "# $1"
-  sleep 0.5
+  sleep 0.3
 }
 
 # ─── Pane Setup ──────────────────────────────────────────────
-echo "Setting up flower:0 panes..."
 
 tmux split-window -t flower:0.0 -v -p 35
 tmux split-window -t flower:0.1 -h
@@ -94,31 +98,26 @@ c1 "export KUBECONFIG=$KUBECONFIG_C1"
 c2 "export KUBECONFIG=$KUBECONFIG_C2"
 hold 1
 
-echo "Panes ready. Starting demo..."
-
-# ─── Agenda ──────────────────────────────────────────────────
-hub_silent "echo ''"
-hub_silent "echo '# =========================================================================='"
-hub_silent "echo '#   Flower Addon on Open Cluster Management -- Demo Agenda'"
-hub_silent "echo '# =========================================================================='"
-hub_silent "echo '#'"
-hub_silent "echo '#   1. OCM Multi-Cluster Setup'"
-hub_silent "echo '#      Bootstrap hub + cluster1 + cluster2, join and accept managed clusters'"
-hub_silent "echo '#'"
-hub_silent "echo '#   2. Flower Addon -- SuperNode Definition'"
-hub_silent "echo '#      Define addon via AddOnTemplate, ClusterManagementAddOn, ManagedClusterAddOn'"
-hub_silent "echo '#'"
-hub_silent "echo '#   3. Flower Addon -- Resource-based Scheduling'"
-hub_silent "echo '#      Schedule the flower-addon onto clusters based on GPU resource labels'"
-hub_silent "echo '#'"
-hub_silent "echo '#   4. Flower Addon -- Application Distribution'"
-hub_silent "echo '#      Distribute ClientApp across clusters via MWRS + data-aware Placement'"
-hub_silent "echo '#'"
-hub_silent "echo '# =========================================================================='"
-hub_silent "echo ''"
-hold 3
-
-read -r -p "  [Enter to begin] "
+# ─── Agenda (printed as comments in hub pane) ─────────────────
+hub_silent "# =========================================================================="
+hub_silent "# Flower Addon on Open Cluster Management -- Demo Agenda"
+hub_silent "# =========================================================================="
+hub_silent "#"
+hub_silent "#   1. OCM Multi-Cluster Setup"
+hub_silent "#      Bootstrap hub + cluster1 + cluster2, join and accept managed clusters"
+hub_silent "#"
+hub_silent "#   2. Flower Addon -- SuperNode Definition"
+hub_silent "#      Define addon via AddOnTemplate, ClusterManagementAddOn"
+hub_silent "#"
+hub_silent "#   3. Flower Addon -- Resource-based Scheduling"
+hub_silent "#      Schedule SuperNode onto clusters based on GPU resource labels"
+hub_silent "#"
+hub_silent "#   4. Flower Addon -- Application Distribution"
+hub_silent "#      Distribute ClientApp across clusters via MWRS + data-aware Placement"
+hub_silent "#"
+hub_silent "# =========================================================================="
+hold 2
+read -rs
 
 # ─── Section 1: OCM Environment Setup ────────────────────────
 
@@ -247,9 +246,6 @@ run "kubectl get manifestworks -A"
 hold 5
 
 banner "Demo Complete"
-hub_silent "echo '  SuperNode  -- infrastructure layer  : scheduled by gpu label'"
-hub_silent "echo '  ClientApp  -- application layer     : scheduled by addon=Available + data label'"
-hub_silent "echo '  ManifestWorkReplicaSet drives automatic distribution as labels change'"
-hub_silent "echo ''"
-echo ""
-echo "Demo finished."
+hub_silent "# SuperNode  -- infrastructure layer  : scheduled by gpu label"
+hub_silent "# ClientApp  -- application layer     : scheduled by addon=Available + data label"
+hub_silent "# ManifestWorkReplicaSet drives automatic distribution as labels change"
