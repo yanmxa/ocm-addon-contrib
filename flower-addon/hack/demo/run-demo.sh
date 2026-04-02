@@ -385,5 +385,5 @@ hub_silent "# 2. SuperNode defined via AddonTemplate, scheduled via Placement by
 hub_silent "#"
 hub_silent "# 3. ClientApp distributed to target clusters via ManifestWorkReplicaSet"
 hub_silent "#"
-hub_silent "# 4. Federated learning training running across cluster1 + cluster2"
+hub_silent "# 4. Federated AI training submitted across cluster1 + cluster2"
 hub_silent "#"
