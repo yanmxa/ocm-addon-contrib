@@ -379,7 +379,7 @@ hub_silent "cd $CTX_DIR/hub"
 
 banner "Demo Complete"
 hub_silent "#"
-hub_silent "# 1. 1 hub + 2 managed clusters bootstrapped"
+hub_silent "# 1. OCM hub initialized with 2 managed clusters registered"
 hub_silent "#"
 hub_silent "# 2. SuperNode defined via AddonTemplate, scheduled via Placement by GPU resources"
 hub_silent "#"
