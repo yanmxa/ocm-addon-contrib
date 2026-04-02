@@ -157,7 +157,7 @@ hub_silent "#   2. Define SuperNode with OCM Addon"
 hub_silent "#"
 hub_silent "#   3. Schedule SuperNode with OCM Placement"
 hub_silent "#"
-hub_silent "#   4. Application Distribution via OCM Work API"
+hub_silent "#   4. Application Distribution via OCM Work"
 hub_silent "#"
 read -rs
 
@@ -315,7 +315,7 @@ recap "SuperNode auto-installed on cluster1 + cluster2 via gpu=true label"
 
 # ─── Section 4: Application Distribution via OCM Work API ────
 
-banner "Section 4/4  |  Application Distribution via OCM Work API"
+banner "Section 4/4  |  Application Distribution via OCM Work"
 
 # Stop watch in cluster panes, switch to observing clientapp pod
 tmux send-keys -t "$C1" "C-c" ""
